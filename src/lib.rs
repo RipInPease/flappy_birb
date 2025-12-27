@@ -142,7 +142,8 @@ impl Pipe {
 impl Draw for Pipe {
     fn draw(&self, stdout: &mut Stdout) -> IOResult<()> {
         let (_, stdout_y) = terminal::size()?;
-
+        let mut curr_row = 0;
+        let mut s = String::new();
 
         // Move to where to start drawing and set color to green
         queue!(
@@ -151,18 +152,25 @@ impl Draw for Pipe {
             cursor::MoveTo(self.pos, 0)
         )?;
 
-
         // Print the top part of the pipe
-        for _ in 0..self.split_height {
-            stdout.queue(PrintLines("████\n"))?;
+        while curr_row < self.split_height {
+            s.push_str("████\n");
+            curr_row += 1;
         }
 
-        stdout.queue(cursor::MoveDown(7))?; 
-
-        while cursor::position()?.1 < stdout_y -1 {
-            stdout.queue(PrintLines("████\n"))?;
+        // Print the gap
+        for _ in 0..7 {
+            s.push_str("\n");
         }
-        stdout.queue(Print("████"))?;
+
+        // Print the bottom
+        while curr_row < stdout_y -1 {
+            s.push_str("████\n");
+            curr_row += 1;
+        }
+        s.push_str("████");
+
+        stdout.queue(PrintLines(&s))?;
 
         Ok(())
     }
