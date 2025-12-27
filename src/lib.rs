@@ -1,6 +1,5 @@
 use crossterm::{queue, QueueableCommand};
 use crossterm::style::{
-    SetBackgroundColor,
     SetForegroundColor,
     Color,
     Print
@@ -10,6 +9,9 @@ use crossterm::terminal;
 
 use std::io::Result as IOResult;
 use std::io::{Stdout};
+
+
+use std::time::{Duration, Instant};
 
 
 /// Makes an object drawable on a screen
@@ -30,6 +32,19 @@ pub struct Birb {
 
 
 impl Birb {
+
+    /// Gives a new birb
+    /// 
+    pub fn new() -> IOResult<Self> {
+        let (_, stdout_y) = terminal::size()?;
+
+        let x = 10;
+        let y = stdout_y / 2;
+
+        let res = Self { pos: (x, y), vel: 0 };
+
+        Ok(res)
+    }
 
     /// Gives the current position of the birb
     /// 
@@ -68,7 +83,7 @@ impl Draw for Birb {
             stdout,
             SetForegroundColor(Color::Yellow),
             cursor::MoveTo(self.pos.0, self.pos.1),
-            PrintLines("██\n██"),
+            Print("██"),
         )
     }
 }
@@ -78,6 +93,7 @@ impl Draw for Birb {
 
 /// A very pipe
 /// 
+#[derive(Debug, Clone)]
 pub struct Pipe {
     pos             : u16,  // X-position of the pipe
     split_height    : u16   // The height at which the pipe is split
@@ -152,6 +168,80 @@ impl Draw for Pipe {
     }
 }
 
+
+/// Contains multiple pipes, makes it easier to do logic with all pipes at once
+/// 
+#[derive(Debug, Clone)]
+pub struct PipeVec {
+    // Contains all pipes
+    pipes: Vec<Pipe>,
+
+    // Time when last pipe was spawned
+    last_pipe: Instant,
+
+
+    // Spwan rate of pipes
+    spawn_rate: Duration
+}
+
+
+impl PipeVec {
+    /// Creates a new instance with a single pipe
+    /// 
+    pub fn new() -> IOResult<Self> {
+        let pipe = Pipe::new()?;
+        let pipes = vec![pipe];
+        let last_pipe = Instant::now();
+        let spawn_rate = Duration::from_secs(5);
+
+        let res = Self { pipes, last_pipe, spawn_rate };
+
+        Ok(res)
+    }
+
+
+    /// Updates all pipes. 
+    /// Potentially spawns a new pipe if elapsed time since last spawn is long enough.
+    /// 
+    pub fn update(&mut self) -> IOResult<()> {
+        let mut remove_first = false;
+
+        for pipe in &mut self.pipes {
+            if pipe.update() == 0 {remove_first = true}
+        }
+
+        if remove_first {
+            self.pipes.remove(0);
+        }
+
+        if self.last_pipe.elapsed() >= self.spawn_rate {
+            let new_pipe = Pipe::new()?;
+            self.pipes.push(new_pipe);
+
+            self.last_pipe = Instant::now();
+        }
+
+        Ok(())
+    }
+
+
+    /// Changes spawn rate of pipes
+    /// 
+    pub fn set_spawn_rate(&mut self, rate: Duration) {
+        self.spawn_rate = rate;
+    }
+}
+
+
+impl Draw for PipeVec {
+    fn draw(&self, stdout: &mut Stdout) -> IOResult<()> {
+        for pipe in &self.pipes {
+            pipe.draw(stdout)?;
+        }
+
+        Ok(())
+    }
+}
 
 
 
