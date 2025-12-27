@@ -1,4 +1,4 @@
-use crossterm::{queue, QueueableCommand};
+use crossterm::{execute, queue, QueueableCommand};
 use crossterm::style::{
     SetForegroundColor,
     Color,
@@ -27,7 +27,7 @@ pub trait Draw {
 #[derive(Debug, Clone)]
 pub struct Birb {
     pos : (u16, u16),   // position
-    vel : u16,          // Velocity
+    vel : f32,          // Velocity
 }
 
 
@@ -41,7 +41,7 @@ impl Birb {
         let x = 10;
         let y = stdout_y / 2;
 
-        let res = Self { pos: (x, y), vel: 0 };
+        let res = Self { pos: (x, y), vel: 0.0 };
 
         Ok(res)
     }
@@ -55,7 +55,7 @@ impl Birb {
 
     /// Gets the vertical velocity of the birb
     /// 
-    pub fn velocity(&self) -> u16 {
+    pub fn velocity(&self) -> f32 {
         self.vel
     }
 
@@ -63,23 +63,36 @@ impl Birb {
     /// Makes the birb go jump
     /// 
     pub fn jump(&mut self) {
-        self.vel = 10;
+        self.vel = -2.2;
+
     }
 
 
     /// Time tick:
     /// Updates position and velocity
     /// 
-    pub fn update(&mut self) {
-        self.pos.1 += self.vel;
-        self.vel -= 1;
+    pub fn update(&mut self) -> IOResult<()> {
+        let stdout_y = terminal::size()?.1;
+        let to_apply = self.vel.abs() as u16;
+
+        if self.vel < 0.0 && self.pos.1 > to_apply{
+            self.pos.1 -= to_apply
+        } else if self.pos.1 + to_apply < stdout_y {
+            self.pos.1 += to_apply
+        }
+
+        if self.vel < 1.2 {
+            self.vel += 0.4;
+        }
+
+        Ok(())
     }
 }
 
 
 impl Draw for Birb {
     fn draw(&self, stdout: &mut Stdout) -> IOResult<()> {
-        queue!(
+        execute!(
             stdout,
             SetForegroundColor(Color::Yellow),
             cursor::MoveTo(self.pos.0, self.pos.1),
